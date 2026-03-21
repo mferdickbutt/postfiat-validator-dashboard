@@ -1,40 +1,66 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# PostFiat Validator Dashboard
 
-## Getting Started
+Real-time monitoring dashboard for PostFiat validators. Built with Next.js, provides visibility into node health, uptime, AI scoring, and governance status.
 
-First, run the development server:
+## Features
+
+- **Node Health Card** - Server state, peer count, ledger height
+- **Uptime Card** - 24h, 7d, 30d uptime percentages
+- **AI Scoring Card** - Performance, reliability, anomaly scores
+- **Network Validators Table** - All UNL validators with status
+- **History Chart** - Time-series visualization
+- **Governance Alerts** - Jail/re-scoring warnings
+
+## Tech Stack
+
+- Next.js 14
+- React 18
+- Tailwind CSS
+- Recharts
+
+## Requirements
+
+- Node.js >= 18
+- PostFiat validator-history-mapper running on port 3001
+
+## Installation
+
+```bash
+npm install
+```
+
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+## Production
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+```bash
+npm run build
+npm start
+```
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+## API Routes
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+| Endpoint | Description |
+|----------|-------------|
+| `/api/validator` | Single validator data |
+| `/api/validators` | All UNL validators |
+| `/api/history` | Time-series history |
+| `/api/jail-simulate` | Simulate jail/release (testing) |
 
-## Learn More
+## Configuration
 
-To learn more about Next.js, take a look at the following resources:
+The dashboard connects to the validator-history-mapper microservice. Update API routes if mapper runs on a different host/port.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Mock Mode
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Add `?mockFailing=true` to URL to simulate a failing validator (testing governance alerts).
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+MIT
