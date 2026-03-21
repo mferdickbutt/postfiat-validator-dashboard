@@ -1,0 +1,19 @@
+{
+  "validatorId": "pf-validator-01",
+  "nodeHealth": {
+    "status": "healthy",
+    "peerCount": 18,
+    "ledgerHeight": 4523392
+  },
+  "uptime": {
+    "last24h": 0.998,
+    "last7d": 0.994,
+    "last30d": 0.989
+  },
+  "aiScore": {
+    "performanceScore": 0.93,
+    "reliabilityScore": 0.96,
+    "anomalyScore": 0.04
+  },
+  "lastUpdated": "2026-03-06T12:00:00.000Z"
+}
