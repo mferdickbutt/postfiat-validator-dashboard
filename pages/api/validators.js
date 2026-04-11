@@ -9,13 +9,14 @@
  */
 
 import { MOCK_FAILING_VALIDATOR } from '../../lib/mockFailingValidator';
+import { buildUpstreamUrl, upstreamUnavailableMessage } from '@/lib/upstreamApi';
 
 export default async function handler(req, res) {
   let upstream;
   try {
-    upstream = await fetch('http://localhost:3001/validators');
+    upstream = await fetch(buildUpstreamUrl('/validators'));
   } catch {
-    return res.status(502).json({ error: 'Mapper service unavailable' });
+    return res.status(502).json({ error: upstreamUnavailableMessage() });
   }
 
   if (!upstream.ok) {

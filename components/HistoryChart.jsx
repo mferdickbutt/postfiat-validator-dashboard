@@ -26,13 +26,13 @@ function UptimeTooltip({ active, payload }) {
   const d = payload[0]?.payload;
   const pct = d?.uptimePct;
   return (
-    <div className="rounded border border-gray-200 bg-white px-3 py-2 shadow-sm text-xs">
-      <p className="font-semibold text-gray-700 mb-1">{d?.fullDate}</p>
-      <p className="text-blue-600">
+    <div className="rounded-xl border border-[color:var(--paper-line)] bg-[rgba(255,249,240,0.96)] px-3 py-2 text-xs shadow-sm">
+      <p className="mb-1 font-semibold text-[color:var(--ink)]">{d?.fullDate}</p>
+      <p className="text-sky-700">
         Uptime: {pct !== null && pct !== undefined ? `${pct.toFixed(2)}%` : 'N/A'}
       </p>
       {d?.totalChecks > 0 && (
-        <p className="text-gray-400">{d.upChecks} / {d.totalChecks} checks</p>
+        <p className="text-[color:rgba(26,35,48,0.56)]">{d.upChecks} / {d.totalChecks} checks</p>
       )}
     </div>
   );
@@ -42,8 +42,8 @@ function ScoresTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const date = payload[0]?.payload?.fullDate;
   return (
-    <div className="rounded border border-gray-200 bg-white px-3 py-2 shadow-sm text-xs">
-      <p className="font-semibold text-gray-700 mb-1">{date}</p>
+    <div className="rounded-xl border border-[color:var(--paper-line)] bg-[rgba(255,249,240,0.96)] px-3 py-2 text-xs shadow-sm">
+      <p className="mb-1 font-semibold text-[color:var(--ink)]">{date}</p>
       {payload.map((entry) => (
         <p key={entry.dataKey} style={{ color: entry.color }}>
           {entry.name}:{' '}
@@ -59,7 +59,7 @@ function ScoresTooltip({ active, payload }) {
 export default function HistoryChart({ history, validatorId }) {
   if (!history || history.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
+      <div className="rounded-[22px] border border-[color:var(--paper-line)] bg-white/40 p-6 text-center text-sm text-[color:rgba(26,35,48,0.56)]">
         No historical data available yet. Check back after the poller accumulates data.
       </div>
     );
@@ -86,13 +86,13 @@ export default function HistoryChart({ history, validatorId }) {
     : 85;
 
   return (
-    <div className="rounded-lg border border-l-4 border-l-indigo-500 bg-white p-6 shadow-sm">
-      <h2 className="mb-1 text-lg font-semibold text-gray-900">30-Day History</h2>
-      <p className="mb-6 font-mono text-xs text-gray-400 break-all">{validatorId}</p>
+    <div className="rounded-[24px] border border-[color:var(--paper-line)] bg-white/40 p-6 shadow-none backdrop-blur-sm">
+      <h2 className="mb-1 text-lg font-semibold text-[color:var(--ink)]">30-Day History</h2>
+      <p className="mb-6 break-all font-mono text-xs text-[color:rgba(26,35,48,0.5)]">{validatorId}</p>
 
       {/* ── Daily Uptime ─────────────────────────────────────────── */}
       <div className="mb-8">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-[color:rgba(26,35,48,0.7)]">
           Daily Uptime
         </p>
         <ResponsiveContainer width="100%" height={200}>
@@ -135,7 +135,7 @@ export default function HistoryChart({ history, validatorId }) {
 
       {/* ── AI Score Metrics ─────────────────────────────────────── */}
       <div>
-        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-[color:rgba(26,35,48,0.7)]">
           AI Score Metrics
         </p>
         <ResponsiveContainer width="100%" height={200}>

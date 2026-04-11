@@ -85,17 +85,17 @@ function rowClasses(v, evaluation, jailState) {
 export default function NetworkValidatorsTable({ validators, evaluations = {} }) {
   if (!validators || validators.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
+      <div className="rounded-[22px] border border-[color:var(--paper-line)] bg-white/40 p-6 text-center text-sm text-[color:rgba(26,35,48,0.56)]">
         No validators found.
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div className="overflow-x-auto overflow-y-visible rounded-[24px] border border-[color:var(--paper-line)] bg-white/45 shadow-none backdrop-blur-sm">
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <tr className="border-b border-[color:var(--paper-line)] bg-[rgba(255,248,240,0.92)] text-xs font-semibold uppercase tracking-wide text-[color:rgba(26,35,48,0.6)]">
             <th className="px-4 py-3">Validator</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">UNL State</th>
@@ -112,7 +112,7 @@ export default function NetworkValidatorsTable({ validators, evaluations = {} })
             return (
               <tr
                 key={v.validatorId}
-                className={"border-b border-gray-50 last:border-0 transition-colors hover:bg-gray-50 " + rowClasses(v, evaluation, jailState)}
+                className={"border-b border-[color:rgba(45,31,18,0.08)] last:border-0 transition-colors hover:bg-white/50 " + rowClasses(v, evaluation, jailState)}
               >
                 <td className="px-4 py-3 font-mono">
                   <div className="flex items-center gap-2">

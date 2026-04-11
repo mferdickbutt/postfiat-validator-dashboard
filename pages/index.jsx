@@ -1,17 +1,75 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import NodeHealthCard from '@/components/NodeHealthCard';
-import UptimeCard from '@/components/UptimeCard';
-import AIScoringCard from '@/components/AIScoringCard';
-import NetworkValidatorsTable from '@/components/NetworkValidatorsTable';
-import HistoryChart from '@/components/HistoryChart';
+import { Cormorant_Garamond, IBM_Plex_Sans } from 'next/font/google';
 import GovernanceAlertBanner from '@/components/GovernanceAlertBanner';
+import HistoryChart from '@/components/HistoryChart';
+import NetworkValidatorsTable from '@/components/NetworkValidatorsTable';
+import PagodaStatusScreen from '@/components/PagodaStatusScreen';
+import VoxelPagodaScene from '@/components/VoxelPagodaScene';
 import { deriveStatus, formatTimestamp } from '@/lib/statusUtils';
 import {
   evaluateGovernanceThresholds,
   buildGovernanceTrigger,
 } from '@/lib/governanceTriggers';
+
+const displayFont = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-display',
+});
+
+const bodyFont = IBM_Plex_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-body',
+});
+
+function DashboardLoading() {
+  return (
+    <div className={`${displayFont.variable} ${bodyFont.variable} pagoda-state`}>
+      <div className="pagoda-state__panel">
+        <p className="pagoda-state__eyebrow">Public Validator Dashboard</p>
+        <h1 className="pagoda-state__title">Preparing the pagoda observatory</h1>
+        <div className="pagoda-state__spinner" aria-hidden="true" />
+        <p className="pagoda-state__copy">Loading validator data and scene assets.</p>
+      </div>
+    </div>
+  );
+}
+
+function DashboardError({ error, onRetry }) {
+  return (
+    <div className={`${displayFont.variable} ${bodyFont.variable} pagoda-state`}>
+      <div className="pagoda-state__panel is-error">
+        <p className="pagoda-state__eyebrow">Public Validator Dashboard</p>
+        <h1 className="pagoda-state__title">The observatory could not load</h1>
+        <p className="pagoda-state__copy">{error}</p>
+        <button onClick={onRetry} className="dashboard-button is-primary">
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function countNetworkStatus(validators) {
+  if (!validators || validators.length === 0) {
+    return {
+      active: 0,
+      offline: 0,
+    };
+  }
+
+  return validators.reduce(
+    (acc, validator) => {
+      if (validator.nodeHealth?.status === 'offline') acc.offline += 1;
+      else acc.active += 1;
+      return acc;
+    },
+    { active: 0, offline: 0 },
+  );
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -25,16 +83,17 @@ export default function Dashboard() {
   const [networkLoading, setNetworkLoading] = useState(true);
   const [networkError, setNetworkError] = useState(null);
 
-  const [historyData, setHistoryData]       = useState(null);
+  const [historyData, setHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [historyError, setHistoryError]     = useState(null);
+  const [historyError, setHistoryError] = useState(null);
 
-  /** Fetch live local-validator data via mapper microservice. */
+  const [activePanel, setActivePanel] = useState(null);
+
   async function loadData(signal) {
     try {
-      const res = await fetch('/dashboard/api/validator', { signal });
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      const json = await res.json();
+      const response = await fetch('/dashboard/api/validator', { signal });
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      const json = await response.json();
       setData(json);
       setError(null);
       setLoading(false);
@@ -46,15 +105,14 @@ export default function Dashboard() {
     }
   }
 
-  /** Fetch all UNL validators from mapper microservice. */
   async function loadNetworkValidators(signal) {
     try {
       const url = mockFailing
         ? '/dashboard/api/validators?includeMockFailing=true'
         : '/dashboard/api/validators';
-      const res = await fetch(url, { signal });
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      const json = await res.json();
+      const response = await fetch(url, { signal });
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      const json = await response.json();
       setNetworkValidators(json);
       setNetworkError(null);
       setNetworkLoading(false);
@@ -66,7 +124,6 @@ export default function Dashboard() {
     }
   }
 
-  // Live data: fetch immediately, then poll every 30 seconds
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
@@ -76,9 +133,9 @@ export default function Dashboard() {
 
     const intervalId = setInterval(() => {
       if (!isMounted) return;
-      const c = new AbortController();
-      loadData(c.signal);
-      loadNetworkValidators(c.signal);
+      const nextController = new AbortController();
+      loadData(nextController.signal);
+      loadNetworkValidators(nextController.signal);
     }, 30_000);
 
     return () => {
@@ -88,21 +145,35 @@ export default function Dashboard() {
     };
   }, [mockFailing]);
 
-  // Historical data: fetch once when validatorId is known (daily data, no need to poll)
   useEffect(() => {
     if (!data?.validatorId) return;
     let isMounted = true;
     setHistoryLoading(true);
 
     fetch(`/dashboard/api/history?validatorId=${encodeURIComponent(data.validatorId)}&days=30`)
-      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-      .then((json) => { if (isMounted) { setHistoryData(json); setHistoryError(null); setHistoryLoading(false); } })
-      .catch((err) => { if (isMounted) { setHistoryError(err.message); setHistoryLoading(false); } });
+      .then((response) => {
+        if (!response.ok) throw new Error(`${response.status}`);
+        return response.json();
+      })
+      .then((json) => {
+        if (isMounted) {
+          setHistoryData(json);
+          setHistoryError(null);
+          setHistoryLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setHistoryError(err.message);
+          setHistoryLoading(false);
+        }
+      });
 
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [data?.validatorId]);
 
-  /** Manual retry after an error. */
   function handleRetry() {
     setLoading(true);
     setError(null);
@@ -115,168 +186,196 @@ export default function Dashboard() {
     loadNetworkValidators(controller.signal);
   }
 
-  // ── Governance evaluation ─────────────────────────────────────────────
   const { evaluations, flaggedValidators, triggers } = useMemo(() => {
     if (!networkValidators) return { evaluations: {}, flaggedValidators: [], triggers: [] };
 
-    const evals = {};
-    const flagged = [];
-    const trigs = [];
+    const nextEvaluations = {};
+    const nextFlagged = [];
+    const nextTriggers = [];
 
-    for (const v of networkValidators) {
-      const history = v.aiScore?.anomalyHistory ?? null;
-      const evaluation = evaluateGovernanceThresholds(v, history);
-      evals[v.validatorId] = evaluation;
+    for (const validator of networkValidators) {
+      const history = validator.aiScore?.anomalyHistory ?? null;
+      const evaluation = evaluateGovernanceThresholds(validator, history);
+      nextEvaluations[validator.validatorId] = evaluation;
 
       if (evaluation.isFlagged) {
-        flagged.push({ validatorId: v.validatorId, evaluation });
-        trigs.push(buildGovernanceTrigger(v, evaluation));
+        nextFlagged.push({ validatorId: validator.validatorId, evaluation });
+        nextTriggers.push(buildGovernanceTrigger(validator, evaluation));
       }
     }
 
-    return { evaluations: evals, flaggedValidators: flagged, triggers: trigs };
+    return {
+      evaluations: nextEvaluations,
+      flaggedValidators: nextFlagged,
+      triggers: nextTriggers,
+    };
   }, [networkValidators]);
 
-  // ── Loading state (local node only blocks full render) ──────────────────
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
-          <p className="text-gray-600">Loading validator data…</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <DashboardLoading />;
+  if (error) return <DashboardError error={error} onRetry={handleRetry} />;
 
-  // ── Error state ────────────────────────────────────────────────────────
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-8 text-center">
-          <p className="mb-2 text-lg font-semibold text-red-800">Error Loading Data</p>
-          <p className="text-sm text-red-600">{error}</p>
-          <button
-            onClick={handleRetry}
-            className="mt-4 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Data loaded ────────────────────────────────────────────────────────
   const computedStatus = deriveStatus(
     data.nodeHealth.peerCount,
     data.aiScore.anomalyScore,
   );
+  const networkSummary = countNetworkStatus(networkValidators);
+  const criticalCount = flaggedValidators.filter(
+    (validator) => validator.evaluation.governanceStatus === 'critical',
+  ).length;
+
+  function togglePanel(name) {
+    setActivePanel((current) => (current === name ? null : name));
+  }
 
   return (
     <>
       <Head>
-        <title>Public Validator Dashboard</title>
-        <meta name="description" content="Public Validator Dashboard — node health, uptime, and AI scoring metrics" />
+        <title>LC66 Validator Observatory</title>
+        <meta
+          name="description"
+          content="Voxel pagoda validator observatory with live node health, network status, and historical trends."
+        />
       </Head>
 
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <header className="border-b bg-white shadow-sm">
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Public Validator Dashboard
-            </h1>
-            {data.lastUpdated && (
-              <p className="mt-1 text-sm text-gray-500">
-                Last updated: {formatTimestamp(data.lastUpdated)}
-              </p>
-            )}
-            {computedStatus !== data.nodeHealth.status && (
-              <p className="mt-1 text-xs text-orange-600">
-                ⚠ JSON status &quot;{data.nodeHealth.status}&quot; does not match
-                computed status &quot;{computedStatus}&quot;.
-              </p>
-            )}
-          </div>
-        </header>
+      <div className={`${displayFont.variable} ${bodyFont.variable} pagoda-dashboard`}>
+        <VoxelPagodaScene
+          statusBoard={
+            <PagodaStatusScreen
+              validatorId={data.validatorId}
+              status={computedStatus}
+              nodeHealth={data.nodeHealth}
+              uptime={data.uptime}
+              aiScore={data.aiScore}
+              lastUpdated={data.lastUpdated}
+            />
+          }
+        />
 
-        <main className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6 lg:px-8">
-          {/* ── Governance alert banner ──────────────────────────────────── */}
-          <GovernanceAlertBanner
-            flaggedValidators={flaggedValidators}
-            triggers={triggers}
-          />
+        <div className="pagoda-overlay">
+          <header className="dashboard-brand">
+            <p className="dashboard-brand__eyebrow">Public Validator Observatory</p>
+            <h1 className="dashboard-brand__title">LC66 Pagoda Relay</h1>
+            <p className="dashboard-brand__copy">
+              The scene is ornamental. The telemetry remains driven by the same live validator,
+              network, and history endpoints.
+            </p>
+          </header>
 
-          {/* ── Local node cards ─────────────────────────────────────────── */}
-          <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Local Node
-            </h2>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              <NodeHealthCard
-                validatorId={data.validatorId}
-                nodeHealth={data.nodeHealth}
-              />
-              <UptimeCard uptime={data.uptime} />
-              <AIScoringCard aiScore={data.aiScore} />
+          <section className="dashboard-meta">
+            <div className={`dashboard-chip is-${computedStatus}`}>
+              <span className="dashboard-chip__dot" />
+              {computedStatus}
             </div>
+            <div className="dashboard-chip">Peers {data.nodeHealth.peerCount}</div>
+            <div className="dashboard-chip">Ledger {data.nodeHealth.ledgerHeight}</div>
+            <div className="dashboard-chip">Updated {formatTimestamp(data.lastUpdated)}</div>
+            {mockFailing && <div className="dashboard-chip is-warning">Mock failing enabled</div>}
           </section>
 
-          {/* ── Network UNL validators table ──────────────────────────────── */}
-          <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Network Validators (UNL)
-            </h2>
+          {computedStatus !== data.nodeHealth.status && (
+            <div className="dashboard-warning">
+              Mapper returned status "{data.nodeHealth.status}" while the current metrics compute as
+              "{computedStatus}".
+            </div>
+          )}
 
-            {networkLoading && (
-              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
-                Loading network validators…
-              </div>
-            )}
-
-            {!networkLoading && networkError && (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-                Failed to load network validators: {networkError}
-              </div>
-            )}
-
-            {!networkLoading && !networkError && (
-              <NetworkValidatorsTable
-                validators={networkValidators}
-                evaluations={evaluations}
+          {flaggedValidators.length > 0 && (
+            <div className="dashboard-alert">
+              <GovernanceAlertBanner
+                flaggedValidators={flaggedValidators}
+                triggers={triggers}
               />
-            )}
-          </section>
+            </div>
+          )}
 
-          {/* ── 30-day historical charts ──────────────────────────────── */}
-          <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Historical Trends (30 Days)
-            </h2>
+          <nav className="dashboard-dock" aria-label="Detail panels">
+            <button
+              className={`dashboard-button ${activePanel === 'network' ? 'is-primary' : ''}`}
+              onClick={() => togglePanel('network')}
+              aria-pressed={activePanel === 'network'}
+            >
+              <span className="dashboard-button__eyebrow">Network Hall</span>
+              <strong>{networkValidators?.length ?? 0} validators</strong>
+              <span>
+                {networkSummary.active} active, {networkSummary.offline} offline
+              </span>
+            </button>
 
-            {historyLoading && (
-              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-500" />
-                Loading historical data…
+            <button
+              className={`dashboard-button ${activePanel === 'history' ? 'is-primary' : ''}`}
+              onClick={() => togglePanel('history')}
+              aria-pressed={activePanel === 'history'}
+            >
+              <span className="dashboard-button__eyebrow">History Scroll</span>
+              <strong>30 day record</strong>
+              <span>{historyLoading ? 'Loading' : 'Uptime and score trends'}</span>
+            </button>
+
+            <div className="dashboard-summary">
+              <span>Flagged {flaggedValidators.length}</span>
+              <span>Critical {criticalCount}</span>
+              <span>30s refresh cadence</span>
+            </div>
+          </nav>
+
+          <aside className={`detail-panel detail-panel--network ${activePanel === 'network' ? 'is-open' : ''}`}>
+            <div className="detail-panel__header">
+              <div>
+                <p className="detail-panel__eyebrow">Network Hall</p>
+                <h2 className="detail-panel__title">UNL Validators</h2>
               </div>
-            )}
+              <button className="detail-panel__close" onClick={() => setActivePanel(null)}>
+                Close
+              </button>
+            </div>
 
-            {!historyLoading && historyError && (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-                Failed to load history: {historyError}
+            <div className="detail-panel__body">
+              {networkLoading && (
+                <div className="detail-panel__empty">Loading live validator availability.</div>
+              )}
+              {!networkLoading && networkError && (
+                <div className="detail-panel__empty is-error">
+                  Failed to load network validators: {networkError}
+                </div>
+              )}
+              {!networkLoading && !networkError && (
+                <NetworkValidatorsTable
+                  validators={networkValidators}
+                  evaluations={evaluations}
+                />
+              )}
+            </div>
+          </aside>
+
+          <aside className={`detail-panel detail-panel--history ${activePanel === 'history' ? 'is-open' : ''}`}>
+            <div className="detail-panel__header">
+              <div>
+                <p className="detail-panel__eyebrow">History Scroll</p>
+                <h2 className="detail-panel__title">Local Validator Timeline</h2>
               </div>
-            )}
+              <button className="detail-panel__close" onClick={() => setActivePanel(null)}>
+                Close
+              </button>
+            </div>
 
-            {!historyLoading && !historyError && historyData && (
-              <HistoryChart
-                history={historyData.history}
-                validatorId={historyData.validatorId}
-              />
-            )}
-          </section>
-        </main>
+            <div className="detail-panel__body">
+              {historyLoading && (
+                <div className="detail-panel__empty">Loading historical telemetry.</div>
+              )}
+              {!historyLoading && historyError && (
+                <div className="detail-panel__empty is-error">
+                  Failed to load history: {historyError}
+                </div>
+              )}
+              {!historyLoading && !historyError && historyData && (
+                <HistoryChart
+                  history={historyData.history}
+                  validatorId={historyData.validatorId}
+                />
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
     </>
   );

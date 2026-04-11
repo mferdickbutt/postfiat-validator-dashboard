@@ -5,12 +5,14 @@
  * The mapper handles the live RPC call; the dashboard just relays.
  */
 
+import { buildUpstreamUrl, upstreamUnavailableMessage } from '@/lib/upstreamApi';
+
 export default async function handler(req, res) {
   let upstream;
   try {
-    upstream = await fetch('http://localhost:3001/validator');
+    upstream = await fetch(buildUpstreamUrl('/validator'));
   } catch {
-    return res.status(502).json({ error: 'Mapper service unavailable' });
+    return res.status(502).json({ error: upstreamUnavailableMessage() });
   }
 
   if (!upstream.ok) {

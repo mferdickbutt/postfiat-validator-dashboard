@@ -5,6 +5,8 @@
  * Passes validatorId and days query parameters through to the backend.
  */
 
+import { buildUpstreamUrl, upstreamUnavailableMessage } from '@/lib/upstreamApi';
+
 export default async function handler(req, res) {
   const { validatorId, days } = req.query;
 
@@ -17,9 +19,9 @@ export default async function handler(req, res) {
 
   let upstream;
   try {
-    upstream = await fetch(`http://localhost:3001/history?${params}`);
+    upstream = await fetch(buildUpstreamUrl(`/history?${params}`));
   } catch {
-    return res.status(502).json({ error: 'Mapper service unavailable' });
+    return res.status(502).json({ error: upstreamUnavailableMessage() });
   }
 
   if (!upstream.ok) {
